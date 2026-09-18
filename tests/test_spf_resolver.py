@@ -82,6 +82,13 @@ class SPFResolverTests(unittest.TestCase):
         self.assertEqual("softfail", result.result)
         self.assertEqual("~all", result.matched_mechanism)
 
+    def test_invalid_ip_mechanism_returns_permerror(self):
+        resolver = SPFResolver(FakeDNSResolver(txt={"example.com": ["v=spf1 ip4:not-a-network -all"]}))
+
+        result = resolver.check_ip("example.com", "198.51.100.20")
+
+        self.assertEqual("permerror", result.result)
+
     def test_exists_matches_when_target_domain_resolves(self):
         resolver = SPFResolver(
             FakeDNSResolver(
@@ -103,8 +110,13 @@ class SPFResolverTests(unittest.TestCase):
             )
         )
 
-        self.assertEqual("pass", resolver.check_ip("example.com", "203.0.113.200").result)
-        self.assertEqual("pass", resolver.check_ip("example.com", "2001:db8::99").result)
+        ipv4_result = resolver.check_ip("example.com", "203.0.113.200")
+        ipv6_result = resolver.check_ip("example.com", "2001:db8::99")
+
+        self.assertEqual("pass", ipv4_result.result)
+        self.assertEqual("a/24/64", ipv4_result.matched_mechanism)
+        self.assertEqual("pass", ipv6_result.result)
+        self.assertEqual("a/24/64", ipv6_result.matched_mechanism)
 
     def test_resolve_returns_include_tree(self):
         resolver = SPFResolver(
@@ -165,6 +177,13 @@ class SPFResolverTests(unittest.TestCase):
 
         self.assertEqual(2, exit_code)
         self.assertIn("Invalid IP address: not-an-ip", stderr.getvalue())
+
+    def test_macro_exists_returns_permerror(self):
+        resolver = SPFResolver(FakeDNSResolver(txt={"example.com": ["v=spf1 exists:%{i}.spf.example.net -all"]}))
+
+        result = resolver.check_ip("example.com", "198.51.100.20")
+
+        self.assertEqual("permerror", result.result)
 
 
 if __name__ == "__main__":

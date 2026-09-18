@@ -303,6 +303,8 @@ class SPFResolver:
             )
 
         if mechanism.name == "exists" and mechanism.value:
+            if "%" in mechanism.value:
+                raise ValueError("SPF macros are not supported")
             return bool(self.dns_resolver.addresses(mechanism.value))
 
         return False
@@ -312,14 +314,13 @@ class SPFResolver:
         prefix = "" if mechanism.qualifier == "+" else mechanism.qualifier
         if mechanism.value is None:
             return f"{prefix}{mechanism.name}"
+        if mechanism.value.startswith("/"):
+            return f"{prefix}{mechanism.name}{mechanism.value}"
         return f"{prefix}{mechanism.name}:{mechanism.value}"
 
     @staticmethod
     def _ip_in_network(ip_address: ipaddress._BaseAddress, network: str) -> bool:
-        try:
-            candidate = ipaddress.ip_network(network, strict=False)
-        except ValueError:
-            return False
+        candidate = ipaddress.ip_network(network, strict=False)
         return ip_address in candidate
 
     @staticmethod
