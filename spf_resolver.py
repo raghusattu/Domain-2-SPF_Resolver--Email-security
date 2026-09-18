@@ -4,6 +4,7 @@ import argparse
 import ipaddress
 import json
 import re
+import sys
 import shutil
 import socket
 import subprocess
@@ -142,9 +143,12 @@ class SPFResolver:
         self.max_depth = max_depth
 
     def resolve(self, domain: str) -> ResolvedSPF:
-        return self._resolve(domain, seen=())
+        return self._resolve(domain, seen=(), depth=0)
 
-    def _resolve(self, domain: str, seen: Tuple[str, ...]) -> ResolvedSPF:
+    def _resolve(self, domain: str, seen: Tuple[str, ...], depth: int) -> ResolvedSPF:
+        if depth > self.max_depth:
+            return ResolvedSPF(domain=domain, record=None, error="SPF resolution exceeded the maximum recursion depth")
+
         if domain in seen:
             return ResolvedSPF(domain=domain, record=None, error="Cyclic SPF include/redirect detected")
 
@@ -159,11 +163,11 @@ class SPFResolver:
         parsed = self.parse_spf_record(domain, record)
         next_seen = seen + (domain,)
         includes = [
-            self._resolve(mechanism.value, next_seen)
+            self._resolve(mechanism.value, next_seen, depth + 1)
             for mechanism in parsed.mechanisms
             if mechanism.name == "include" and mechanism.value
         ]
-        redirect = self._resolve(parsed.redirect, next_seen) if parsed.redirect else None
+        redirect = self._resolve(parsed.redirect, next_seen, depth + 1) if parsed.redirect else None
         return ResolvedSPF(domain=domain, record=record, includes=includes, redirect=redirect)
 
     def get_spf_record(self, domain: str) -> Optional[str]:
@@ -199,6 +203,9 @@ class SPFResolver:
 
             if ":" in token:
                 name, value = token.split(":", 1)
+            elif "/" in token:
+                name, value = token.split("/", 1)
+                value = f"/{value}"
             else:
                 name, value = token, None
             mechanisms.append(SPFMechanism(qualifier=qualifier, name=name, value=value))
@@ -244,7 +251,11 @@ class SPFResolver:
         next_seen = seen + (domain,)
 
         for mechanism in parsed.mechanisms:
-            if self._mechanism_matches(domain, mechanism, ip_address, depth, next_seen):
+            try:
+                matched = self._mechanism_matches(domain, mechanism, ip_address, depth, next_seen)
+            except ValueError:
+                return "permerror", None, record
+            if matched:
                 return RESULTS_BY_QUALIFIER[mechanism.qualifier], self._format_mechanism(mechanism), record
 
         if parsed.redirect:
@@ -292,7 +303,13 @@ class SPFResolver:
             )
 
         if mechanism.name == "exists" and mechanism.value:
-            return bool(self.dns_resolver.addresses(mechanism.value))
+            for candidate in self.dns_resolver.addresses(mechanism.value):
+                try:
+                    if ipaddress.ip_address(candidate).version == 4:
+                        return True
+                except ValueError:
+                    continue
+            return False
 
         return False
 
@@ -316,21 +333,14 @@ class SPFResolver:
         if value is None:
             return None, None, None
 
-        domain = value
-        ipv4_length = None
-        ipv6_length = None
+        parts = value.split("/")
+        if len(parts) > 3:
+            raise ValueError(f"Invalid SPF mechanism value: {value}")
 
-        if "//" in value:
-            value, ipv6_text = value.split("//", 1)
-            ipv6_length = int(ipv6_text) if ipv6_text else None
-
-        if "/" in value:
-            domain, ipv4_text = value.split("/", 1)
-            ipv4_length = int(ipv4_text) if ipv4_text else None
-        else:
-            domain = value
-
-        return domain or None, ipv4_length, ipv6_length
+        domain = parts[0] or None
+        ipv4_length = int(parts[1]) if len(parts) >= 2 and parts[1] else None
+        ipv6_length = int(parts[2]) if len(parts) == 3 and parts[2] else None
+        return domain, ipv4_length, ipv6_length
 
     def _ip_matches_resolved_addresses(
         self,
@@ -360,13 +370,17 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> int:
+def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     resolver = SPFResolver()
 
     if args.ip:
-        result = resolver.check_ip(args.domain, args.ip)
+        try:
+            result = resolver.check_ip(args.domain, args.ip)
+        except ValueError:
+            print(f"Invalid IP address: {args.ip}", file=sys.stderr)
+            return 2
         print(json.dumps(result.to_dict(), indent=2))
         return 0
 

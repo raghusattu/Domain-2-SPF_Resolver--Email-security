@@ -1,6 +1,8 @@
+import contextlib
+import io
 import unittest
 
-from spf_resolver import SPFResolver
+from spf_resolver import SPFResolver, main
 
 
 class FakeDNSResolver:
@@ -80,6 +82,30 @@ class SPFResolverTests(unittest.TestCase):
         self.assertEqual("softfail", result.result)
         self.assertEqual("~all", result.matched_mechanism)
 
+    def test_exists_does_not_match_ipv6_only_hosts(self):
+        resolver = SPFResolver(
+            FakeDNSResolver(
+                txt={"example.com": ["v=spf1 exists:ipv6-only.example.net -all"]},
+                addresses={"ipv6-only.example.net": ["2001:db8::10"]},
+            )
+        )
+
+        result = resolver.check_ip("example.com", "198.51.100.20")
+
+        self.assertEqual("fail", result.result)
+        self.assertEqual("-all", result.matched_mechanism)
+
+    def test_dual_cidr_syntax_is_supported_for_a_mechanism(self):
+        resolver = SPFResolver(
+            FakeDNSResolver(
+                txt={"example.com": ["v=spf1 a/24/64 -all"]},
+                addresses={"example.com": ["203.0.113.25", "2001:db8::25"]},
+            )
+        )
+
+        self.assertEqual("pass", resolver.check_ip("example.com", "203.0.113.200").result)
+        self.assertEqual("pass", resolver.check_ip("example.com", "2001:db8::99").result)
+
     def test_resolve_returns_include_tree(self):
         resolver = SPFResolver(
             FakeDNSResolver(
@@ -96,6 +122,49 @@ class SPFResolverTests(unittest.TestCase):
         self.assertEqual("example.com", resolved["domain"])
         self.assertEqual("_spf.sender.test", resolved["includes"][0]["domain"])
         self.assertEqual("_spf.redirect.test", resolved["redirect"]["domain"])
+
+    def test_resolve_detects_cycles(self):
+        resolver = SPFResolver(
+            FakeDNSResolver(
+                txt={
+                    "example.com": ["v=spf1 include:loop.example.net"],
+                    "loop.example.net": ["v=spf1 redirect=example.com"],
+                }
+            )
+        )
+
+        resolved = resolver.resolve("example.com").to_dict()
+
+        self.assertEqual("Cyclic SPF include/redirect detected", resolved["includes"][0]["redirect"]["error"])
+
+    def test_resolve_honors_max_depth(self):
+        resolver = SPFResolver(
+            FakeDNSResolver(
+                txt={
+                    "example.com": ["v=spf1 include:level1.example.net"],
+                    "level1.example.net": ["v=spf1 include:level2.example.net"],
+                    "level2.example.net": ["v=spf1 include:level3.example.net"],
+                    "level3.example.net": ["v=spf1 -all"],
+                }
+            ),
+            max_depth=1,
+        )
+
+        resolved = resolver.resolve("example.com").to_dict()
+
+        self.assertEqual(
+            "SPF resolution exceeded the maximum recursion depth",
+            resolved["includes"][0]["includes"][0]["error"],
+        )
+
+    def test_main_reports_invalid_ip_address(self):
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stderr(stderr):
+            exit_code = main(["example.com", "--ip", "not-an-ip"])
+
+        self.assertEqual(2, exit_code)
+        self.assertIn("Invalid IP address: not-an-ip", stderr.getvalue())
 
 
 if __name__ == "__main__":
