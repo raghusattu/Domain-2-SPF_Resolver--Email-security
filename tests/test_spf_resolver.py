@@ -82,7 +82,7 @@ class SPFResolverTests(unittest.TestCase):
         self.assertEqual("softfail", result.result)
         self.assertEqual("~all", result.matched_mechanism)
 
-    def test_exists_does_not_match_ipv6_only_hosts(self):
+    def test_exists_matches_when_target_domain_resolves(self):
         resolver = SPFResolver(
             FakeDNSResolver(
                 txt={"example.com": ["v=spf1 exists:ipv6-only.example.net -all"]},
@@ -92,8 +92,8 @@ class SPFResolverTests(unittest.TestCase):
 
         result = resolver.check_ip("example.com", "198.51.100.20")
 
-        self.assertEqual("fail", result.result)
-        self.assertEqual("-all", result.matched_mechanism)
+        self.assertEqual("pass", result.result)
+        self.assertEqual("exists:ipv6-only.example.net", result.matched_mechanism)
 
     def test_dual_cidr_syntax_is_supported_for_a_mechanism(self):
         resolver = SPFResolver(

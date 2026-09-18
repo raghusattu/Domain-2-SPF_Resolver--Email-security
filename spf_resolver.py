@@ -303,13 +303,7 @@ class SPFResolver:
             )
 
         if mechanism.name == "exists" and mechanism.value:
-            for candidate in self.dns_resolver.addresses(mechanism.value):
-                try:
-                    if ipaddress.ip_address(candidate).version == 4:
-                        return True
-                except ValueError:
-                    continue
-            return False
+            return bool(self.dns_resolver.addresses(mechanism.value))
 
         return False
 

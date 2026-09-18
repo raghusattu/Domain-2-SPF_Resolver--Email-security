@@ -2,6 +2,8 @@
 
 Small Python SPF resolver for email security use cases.
 
+This is a lightweight resolver for common SPF inspection and IP validation workflows rather than a full RFC 7208 implementation.
+
 ## Features
 
 - Resolves a domain's SPF record from DNS TXT records
@@ -14,6 +16,12 @@ Small Python SPF resolver for email security use cases.
   - `mx`
   - `exists`
   - `all`
+
+## Notes
+
+- `redirect` is supported during policy evaluation and when building the resolved policy tree.
+- The resolver is intentionally focused on common SPF cases; advanced macro expansion and other edge-case RFC behaviors are not implemented.
+- `exists` is treated as a best-effort address lookup check using the resolver's available DNS results.
 
 ## Usage
 
