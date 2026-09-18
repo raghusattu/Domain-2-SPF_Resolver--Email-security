@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Permit – SPF / DMARC / IP Audit</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;1,14..32,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:            #f2f2f7;
+  --surface:       #ffffff;
+  --surface2:      #f2f2f7;
+  --surface3:      #e5e5ea;
+  --surface4:      #d1d1d6;
+  --border:        rgba(60,60,67,0.08);
+  --border-mid:    rgba(60,60,67,0.14);
+  --border-strong: rgba(60,60,67,0.22);
+  --accent:        #007aff;
+  --accent-hover:  #006ee6;
+  --accent-light:  rgba(0,122,255,0.10);
+  --accent-soft:   rgba(0,122,255,0.05);
+  --text:          #1c1c1e;
+  --text-2:        #3a3a3c;
+  --text-3:        #636366;
+  --text-4:        #aeaeb2;
+  --ok:            #1c7737;
+  --ok-bg:         #edf7f1;
+  --ok-border:     rgba(28,119,55,0.18);
+  --warn:          #7d4e00;
+  --warn-bg:       #fef8ec;
+  --warn-border:   rgba(125,78,0,0.18);
+  --bad:           #ae2222;
+  --bad-bg:        #fdf1f1;
+  --bad-border:    rgba(174,34,34,0.18);
+  --info:          #0550ae;
+  --info-bg:       #edf3fc;
+  --info-border:   rgba(5,80,174,0.18);
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  --r:    16px;
+  --r-sm: 10px;
+  --r-xs: 6px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 64px 24px 100px;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.wrap { max-width: 920px; margin: 0 auto; }
+
+.site-header { display: flex; align-items: center; margin-bottom: 52px; }
+.logo-lockup { display: flex; align-items: center; gap: 11px; }
+.logo-icon {
+  width: 36px; height: 36px; background: var(--text); border-radius: 9px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+}
+.logo-icon svg { width: 18px; height: 18px; fill: #fff; }
+.logo-name { font-size: 20px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
+.logo-sep { width: 1px; height: 18px; background: var(--border-strong); margin: 0 16px; flex-shrink: 0; }
+.logo-sub { font-size: 13px; font-weight: 400; color: var(--text-3); }
+.header-badge {
+  margin-left: auto; font-size: 11px; font-weight: 500; color: var(--text-3);
+  background: var(--surface3); padding: 4px 11px; border-radius: 20px;
+}
+
+.card {
+  background: var(--surface); border-radius: var(--r); border: 1px solid var(--border);
+  margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+.card-header { padding: 20px 24px 0; }
+.card-title { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-3); }
+.card-body { padding: 16px 24px 22px; }
+.card-body.tight { padding: 14px 24px 20px; }
+
+.input-row { display: flex; gap: 8px; align-items: center; }
+
+input[type=text] {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border-mid);
+  border-radius: var(--r-sm); color: var(--text); font-family: var(--sans);
+  font-size: 15px; font-weight: 400; padding: 11px 15px; outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s; letter-spacing: -0.1px;
+}
+input[type=text]::placeholder { color: var(--text-4); }
+input[type=text]:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-light); }
+
+textarea {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border-mid);
+  border-radius: var(--r-sm); color: var(--text); font-family: var(--mono);
+  font-size: 12.5px; line-height: 1.75; padding: 12px 15px; outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s; resize: vertical; min-height: 96px;
+}
+textarea::placeholder { color: var(--text-4); font-family: var(--sans); font-size: 14px; }
+textarea:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-light); }
+
+button.btn {
+  background: var(--accent); border: none; border-radius: var(--r-sm); color: #fff;
+  font-family: var(--sans); font-size: 14px; font-weight: 500; padding: 11px 22px;
+  cursor: pointer; white-space: nowrap; letter-spacing: -0.2px;
+  transition: background 0.15s, transform 0.1s; box-shadow: 0 1px 2px rgba(0,122,255,0.25);
+}
+button.btn:hover { background: var(--accent-hover); }
+button.btn:active { transform: scale(0.98); }
+button.btn:disabled { opacity: 0.32; cursor: not-allowed; }
+button.btn.ghost {
+  background: var(--surface2); border: 1px solid var(--border-mid); color: var(--text-2);
+  box-shadow: none; font-size: 13px; padding: 8px 16px;
+}
+button.btn.ghost:hover { background: var(--surface3); }
+
+.status-row { display: flex; align-items: center; gap: 12px; margin-top: 14px; min-height: 22px; }
+.status-text { font-size: 13px; color: var(--text-3); display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+
+.spinner {
+  width: 13px; height: 13px; border: 1.5px solid var(--surface3); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.65s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.progress-track { flex: 1; height: 2px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+.progress-fill  { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.35s cubic-bezier(0.4,0,0.2,1); }
+
+.badge {
+  display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0; white-space: nowrap;
+}
+.badge.ok   { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok-border); }
+.badge.bad  { background: var(--bad-bg);  color: var(--bad);  border: 1px solid var(--bad-border); }
+.badge.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-border); }
+.badge.info { background: var(--info-bg); color: var(--info); border: 1px solid var(--info-border); }
+
+.alert-area { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.alert {
+  display: flex; align-items: flex-start; gap: 10px; border-radius: var(--r-sm);
+  padding: 12px 16px; font-size: 13px; line-height: 1.5; border: 1px solid;
+}
+.alert-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.alert.ok   { background: var(--ok-bg);   border-color: var(--ok-border);   color: var(--ok);   }
+.alert.ok   .alert-dot { background: var(--ok); }
+.alert.bad  { background: var(--bad-bg);  border-color: var(--bad-border);  color: var(--bad);  }
+.alert.bad  .alert-dot { background: var(--bad); }
+.alert.warn { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn); }
+.alert.warn .alert-dot { background: var(--warn); }
+.alert.info { background: var(--info-bg); border-color: var(--info-border); color: var(--info); }
+.alert.info .alert-dot { background: var(--info); }
+
+.tab-bar { display: flex; border-bottom: 1px solid var(--border); padding: 0 24px; margin-top: 4px; }
+.tab {
+  padding: 12px 16px; font-size: 13px; font-weight: 500; color: var(--text-3); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s; user-select: none; letter-spacing: -0.1px;
+}
+.tab:hover { color: var(--text-2); }
+.tab.active { color: var(--accent); border-color: var(--accent); }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+.toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.toolbar input[type=text] { width: 210px; flex: none; padding: 7px 12px; font-size: 13px; }
+.count-pill {
+  margin-left: auto; font-size: 12px; font-weight: 500; color: var(--text-3);
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 12px;
+}
+
+.lookup-meter {
+  display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-3);
+  margin-bottom: 14px; padding: 10px 14px; background: var(--surface2);
+  border-radius: var(--r-sm); border: 1px solid var(--border);
+}
+.lookup-dots { display: flex; gap: 4px; }
+.lookup-dot { width: 8px; height: 8px; border-radius: 2.5px; background: var(--surface4); }
+.lookup-dot.used { background: var(--accent); }
+.lookup-dot.warn { background: #f59e0b; }
+.lookup-dot.over { background: var(--bad); }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: var(--text-3);
+  text-transform: uppercase; border-bottom: 1px solid var(--border);
+  padding: 9px 14px; text-align: left; background: var(--surface2);
+}
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-2); vertical-align: middle; font-size: 13px; }
+tr:last-child td { border-bottom: none; }
+tbody tr { transition: background 0.1s; }
+tbody tr:hover td { background: var(--accent-soft); }
+
+.mono { font-family: var(--mono); font-size: 12px; }
+
+.mech-tag {
+  font-size: 10px; font-family: var(--mono); font-weight: 500;
+  padding: 2px 8px; border-radius: var(--r-xs); border: 1px solid; display: inline-block;
+}
+.mech-ip4  { color:#1855a8; border-color:rgba(24,85,168,0.22);  background:rgba(24,85,168,0.07); }
+.mech-ip6  { color:#5229a3; border-color:rgba(82,41,163,0.22);  background:rgba(82,41,163,0.07); }
+.mech-a    { color:#1a6e42; border-color:rgba(26,110,66,0.22);  background:rgba(26,110,66,0.07); }
+.mech-mx   { color:#7a4900; border-color:rgba(122,73,0,0.22);   background:rgba(122,73,0,0.07); }
+.mech-inc  { color:#a02878; border-color:rgba(160,40,120,0.22); background:rgba(160,40,120,0.07); }
+.mech-redir{ color:#4e32a0; border-color:rgba(78,50,160,0.22);  background:rgba(78,50,160,0.07); }
+.mech-all  { color:#ae2222; border-color:rgba(174,34,34,0.22);  background:rgba(174,34,34,0.07); }
+.mech-exists{color:#095e80; border-color:rgba(9,94,128,0.22);   background:rgba(9,94,128,0.07); }
+
+/* ─── DNS Tree ──────────────────────────────────────────────────────────────── */
+.tree-root-wrap { display: flex; flex-direction: column; gap: 4px; }
+
+.tree-node {
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-mid);
+  background: var(--surface);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.tree-node:has(.tree-toggle:focus-visible) { box-shadow: 0 0 0 3px var(--accent-light); }
+
+.tree-node.depth-0 { border-color: rgba(0,122,255,0.3); box-shadow: 0 2px 8px rgba(0,122,255,0.08); }
+.tree-node.depth-1 { margin-left: 24px; border-color: rgba(160,40,120,0.22); }
+.tree-node.depth-2 { margin-left: 48px; border-color: rgba(26,110,66,0.22); }
+.tree-node.depth-3 { margin-left: 72px; border-color: var(--border-mid); }
+
+.tree-toggle {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 16px;
+  cursor: pointer; background: none; border: none; font-family: var(--sans);
+  text-align: left; transition: background 0.15s; user-select: none;
+}
+.tree-toggle:hover { background: var(--accent-soft); }
+.tree-toggle[aria-expanded="true"] { border-bottom: 1px solid var(--border); }
+
+.tree-chevron {
+  flex-shrink: 0; width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-4); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), color 0.15s;
+}
+.tree-toggle[aria-expanded="true"] .tree-chevron {
+  transform: rotate(90deg); color: var(--accent);
+}
+.tree-chevron svg { width: 12px; height: 12px; }
+
+.tree-node-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.tree-depth-icon {
+  flex-shrink: 0; width: 20px; height: 20px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; font-family: var(--mono);
+}
+.depth-0 .tree-depth-icon { background: rgba(0,122,255,0.10); color: var(--accent); }
+.depth-1 .tree-depth-icon { background: rgba(160,40,120,0.08); color: #a02878; }
+.depth-2 .tree-depth-icon { background: rgba(26,110,66,0.08); color: #1a6e42; }
+.depth-3 .tree-depth-icon { background: var(--surface2); color: var(--text-3); }
+
+.tree-domain-label { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-node-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.tree-ip-count { font-size: 11px; font-weight: 500; color: var(--text-4); font-family: var(--mono); }
+
+.tree-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.tree-body.open { grid-template-rows: 1fr; }
+.tree-body-inner { overflow: hidden; }
+
+.tree-content { padding: 14px 16px; }
+
+.tree-spf-record {
+  font-family: var(--mono); font-size: 11.5px; color: var(--text-3);
+  word-break: break-all; line-height: 1.8; margin-bottom: 10px;
+  padding: 10px 12px; background: var(--surface2); border-radius: var(--r-xs);
+  border: 1px solid var(--border);
+}
+.tree-spf-record .spf-token { padding: 0 2px; border-radius: 3px; }
+.spf-token-v { color: var(--text-3); }
+.spf-token-ip4 { color: #1855a8; background: rgba(24,85,168,0.06); }
+.spf-token-ip6 { color: #5229a3; background: rgba(82,41,163,0.06); }
+.spf-token-include { color: #a02878; background: rgba(160,40,120,0.06); }
+.spf-token-a { color: #1a6e42; background: rgba(26,110,66,0.06); }
+.spf-token-mx { color: #7a4900; background: rgba(122,73,0,0.06); }
+.spf-token-redirect { color: #4e32a0; background: rgba(78,50,160,0.06); }
+.spf-token-all-fail { color: #ae2222; background: rgba(174,34,34,0.06); }
+.spf-token-all-soft { color: #7d4e00; background: rgba(125,78,0,0.06); }
+.spf-token-all-pass { color: var(--ok); background: var(--ok-bg); }
+.spf-token-all-neutral { color: var(--info); background: var(--info-bg); }
+
+.tree-mechs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+
+.tree-children { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+
+.tree-error-note { 
+  font-size: 12px; color: var(--bad); font-style: italic; 
+  padding: 8px 12px; background: var(--bad-bg); border-radius: var(--r-xs); 
+  border: 1px solid var(--bad-border);
+}
+
+/* ─── DMARC ──────────────────────────────────────────────────────────────────*/
+.dmarc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(186px, 1fr)); gap: 8px; margin-top: 14px; }
+.dmarc-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 13px 15px; }
+.dmarc-key { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-3); margin-bottom: 5px; }
+.dmarc-val { font-size: 14px; font-weight: 500; color: var(--text); word-break: break-all; letter-spacing: -0.2px; }
+
+pre.raw-spf {
+  white-space: pre-wrap; word-break: break-all; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 14px 16px; font-family: var(--mono); font-size: 12px;
+  color: var(--text-2); line-height: 1.75; margin-top: 8px;
+}
+
+.ip6-badge {
+  font-size: 9px; padding: 1px 5px; background: rgba(82,41,163,0.07);
+  border: 1px solid rgba(82,41,163,0.2); border-radius: 4px; color: #5229a3;
+  font-weight: 600; vertical-align: middle; margin-left: 5px; font-family: var(--mono);
+}
+
+.audit-area { display: flex; gap: 10px; align-items: flex-start; }
+.audit-area textarea { flex: 1; }
+.hidden { display: none !important; }
+
+/* ── Security Score card ── */
+.score-ring-wrap { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.score-ring { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
+.score-ring svg { transform: rotate(-90deg); }
+.score-ring .score-num {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 600; letter-spacing: -0.5px;
+}
+.score-details { flex: 1; min-width: 200px; }
+.score-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.score-row:last-child { border-bottom: none; }
+.score-label { color: var(--text-2); }
+
+/* ── DKIM / MTA-STS / BIMI tabs ── */
+.extra-rec-pre {
+  font-family: var(--mono); font-size: 12px; color: var(--text-2);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 12px 14px; margin-top: 8px;
+  white-space: pre-wrap; word-break: break-all; line-height: 1.75;
+}
+
+/* Tree controls bar */
+.tree-controls {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  padding: 8px 12px; background: var(--surface2); border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+}
+.tree-controls-label { font-size: 12px; color: var(--text-3); flex: 1; }
+.tree-ctrl-btn {
+  font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 6px;
+  border: 1px solid var(--border-mid); background: var(--surface); color: var(--text-2);
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.tree-ctrl-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site-header">
+    <div class="logo-lockup">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.35C16.5 22.15 20 17.25 20 12V6L12 2zm-1 13l-3-3 1.41-1.41L11 12.17l4.59-4.58L17 9l-6 6z"/>
+        </svg>
+      </div>
+      <span class="logo-name">Permit</span>
+    </div>
+    <div class="logo-sep"></div>
+    <span class="logo-sub">RAGHU SATTU . RFC 7208 · SPF · DMARC · IP Audit</span>
+    <span class="header-badge">v2.2</span>
+  </header>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Domain Analysis</div></div>
+    <div class="card-body">
+      <div class="input-row">
+        <input type="text" id="domainInput" placeholder="example.com" autocomplete="off" spellcheck="false"
+          onkeydown="if(event.key==='Enter') runAll()">
+        <button class="btn" id="resolveBtn" onclick="runAll()">Resolve</button>
+      </div>
+      <div class="status-row">
+        <div class="status-text" id="statusBar">Ready</div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert-area" id="alertArea"></div>
+
+  <div id="results" class="hidden">
+
+    <!-- Security Score -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">Email Security Score</div></div>
+      <div class="card-body">
+        <div class="score-ring-wrap">
+          <div class="score-ring">
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="var(--surface3)" stroke-width="7"/>
+              <circle id="scoreArc" cx="40" cy="40" r="34" fill="none" stroke="var(--accent)"
+                stroke-width="7" stroke-linecap="round"
+                stroke-dasharray="213.6" stroke-dashoffset="213.6"
+                style="transition:stroke-dashoffset 1s ease,stroke 0.5s"/>
+            </svg>
+            <div class="score-num" id="scoreNum">—</div>
+          </div>
+          <div class="score-details" id="scoreDetails"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPF -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">SPF Resolution</div></div>
+      <div class="tab-bar">
+        <div class="tab active" onclick="setTab(this,'flatTable')">Flat IPs</div>
+        <div class="tab" onclick="setTab(this,'treeView')">DNS Tree</div>
+        <div class="tab" onclick="setTab(this,'rawSpf')">Raw Records</div>
+      </div>
+
+      <div class="tab-pane active" id="flatTable">
+        <div class="card-body tight">
+          <div class="toolbar">
+            <input type="text" id="spfSearch" placeholder="Filter IP or source…" oninput="filterSPF()">
+            <button class="btn ghost" onclick="exportCSV('spfTableBody','spf_flat.csv')">Export CSV</button>
+            <div class="count-pill" id="spfCount">0 IPs</div>
+          </div>
+          <div id="lookupMeter" class="lookup-meter"></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>IP / CIDR</th><th>Version</th><th>Mechanism</th><th>Qualifier</th><th>Source Domain</th></tr></thead>
+              <tbody id="spfTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="treeView">
+        <div class="card-body tight">
+          <div class="tree-controls">
+            <span class="tree-controls-label" id="treeStats">DNS resolution tree</span>
+            <button class="tree-ctrl-btn" onclick="setAllTreeNodes(true)">Expand All</button>
+            <button class="tree-ctrl-btn" onclick="setAllTreeNodes(false)">Collapse All</button>
+          </div>
+          <div id="treeOutput" class="tree-root-wrap"></div>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="rawSpf"><div class="card-body tight"><div id="rawSpfOutput"></div></div></div>
+    </div>
+
+    <!-- IP Audit -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">IP Authorization Audit</div></div>
+      <div class="card-body">
+        <div class="audit-area">
+          <textarea id="userIps" placeholder="Paste IPs — one per line (IPv4 or IPv6)&#10;203.0.113.5&#10;2001:db8::1"></textarea>
+          <button class="btn" onclick="runAudit()" style="align-self:flex-start;flex-shrink:0">Audit IPs</button>
+        </div>
+        <div id="auditProgress" style="margin-top:10px"></div>
+        <div class="toolbar" style="margin-top:16px">
+          <button class="btn ghost" onclick="exportCSV('auditTableBody','audit_results.csv')">Export CSV</button>
+          <div id="auditSummary" style="font-size:12px;color:var(--text-3);margin-left:auto;display:flex;gap:8px;align-items:center"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>IP Address</th><th>Status</th><th>Matched Entry</th><th>Source</th><th>Mechanism</th><th>Org / ASN</th><th>Location</th></tr></thead>
+            <tbody id="auditTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DMARC -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">DMARC Policy</div></div>
+      <div class="card-body"><div id="dmarcOutput"></div></div>
+    </div>
+
+    <!-- Extra Records -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">Additional Email Security Records</div></div>
+      <div class="tab-bar">
+        <div class="tab active" onclick="setTab(this,'tabDkim')">DKIM</div>
+        <div class="tab" onclick="setTab(this,'tabMtaSts')">MTA-STS</div>
+        <div class="tab" onclick="setTab(this,'tabBimi')">BIMI</div>
+        <div class="tab" onclick="setTab(this,'tabTls')">TLS-RPT</div>
+      </div>
+      <div class="tab-pane active" id="tabDkim"><div class="card-body tight"><div id="dkimOutput"></div></div></div>
+      <div class="tab-pane" id="tabMtaSts"><div class="card-body tight"><div id="mtaStsOutput"></div></div></div>
+      <div class="tab-pane" id="tabBimi"><div class="card-body tight"><div id="bimiOutput"></div></div></div>
+      <div class="tab-pane" id="tabTls"><div class="card-body tight"><div id="tlsRptOutput"></div></div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
+const DNS_API   = "https://dns.google/resolve";
+const RFC_LIMIT = 10;
+
+const DKIM_SELECTORS = [
+  'default','google','selector1','selector2','k1','k2','mail','smtp',
+  'dkim','email','s1','s2','protonmail','zoho','mailchimp','sendgrid',
+  'mandrill','sparkpost','amazonses','pm','mimecast','office365'
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let state = {
+  rfcLookups: 0, visited: new Set(), flat: [], dnsCache: new Map(),
+  rawRecords: [], treeRoot: null, allQualifier: null, limitHit: false,
+  dmarcTags: {}, hasSPF: false, hasDMARC: false,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DNS
+// ─────────────────────────────────────────────────────────────────────────────
+async function dnsRaw(name, type) {
+  const key = `${name}|${type}`;
+  if (state.dnsCache.has(key)) return state.dnsCache.get(key);
+  try {
+    const res  = await fetch(`${DNS_API}?name=${encodeURIComponent(name)}&type=${type}`);
+    if (!res.ok) { state.dnsCache.set(key, []); return []; }
+    const json = await res.json();
+    const ans  = (json.Answer || []).map(r => ({
+      ...r, data: (r.data || "").replace(/"/g, "").replace(/\s+/g, " ").trim()
+    }));
+    state.dnsCache.set(key, ans);
+    return ans;
+  } catch { state.dnsCache.set(key, []); return []; }
+}
+
+async function dnsLookup(name, type) {
+  state.rfcLookups++;
+  setProgress(Math.min(state.rfcLookups / RFC_LIMIT * 55, 55));
+  if (state.rfcLookups > RFC_LIMIT && !state.limitHit) {
+    state.limitHit = true;
+    addAlert('warn',
+      `RFC 7208 §4.6.4 lookup limit of ${RFC_LIMIT} reached — further mechanism lookups skipped. ` +
+      `This domain's SPF chain is over-limit (PERMERROR in strict evaluators).`
+    );
+  }
+  if (state.limitHit && state.rfcLookups > RFC_LIMIT) return [];
+  return dnsRaw(name, type);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IP MATCHING
+// ─────────────────────────────────────────────────────────────────────────────
+function ipToInt(ip) {
+  const parts = ip.split('.').map(Number);
+  return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+}
+
+function matchIP(inputIP, cidrOrIP) {
+  const input = inputIP.trim();
+  const [addr, prefix] = cidrOrIP.split('/');
+  const isInputV6  = input.includes(':');
+  const isCidrV6   = addr.includes(':');
+
+  if (isInputV6 !== isCidrV6) return false; // version mismatch
+
+  if (!isInputV6) {
+    // IPv4
+    if (!prefix || prefix === '32') return input === addr;
+    try {
+      const maskLen = parseInt(prefix, 10);
+      const mask    = maskLen === 0 ? 0 : (~0 << (32 - maskLen)) >>> 0;
+      return (ipToInt(input) & mask) === (ipToInt(addr) & mask);
+    } catch { return false; }
+  } else {
+    // IPv6 — expand and compare
+    if (!prefix || prefix === '128') return normalizeIPv6(input) === normalizeIPv6(addr);
+    try {
+      const maskLen  = parseInt(prefix, 10);
+      const inputBig = ipv6ToBigInt(normalizeIPv6(input));
+      const addrBig  = ipv6ToBigInt(normalizeIPv6(addr));
+      const mask     = maskLen === 0 ? 0n : (~0n << BigInt(128 - maskLen));
+      return (inputBig & mask) === (addrBig & mask);
+    } catch { return false; }
+  }
+}
+
+function normalizeIPv6(ip) {
+  const [main, tail] = ip.split('::');
+  if (tail === undefined) {
+    return main.split(':').map(h => h.padStart(4,'0')).join(':');
+  }
+  const left  = main ? main.split(':') : [];
+  const right = tail ? tail.split(':') : [];
+  const fill  = 8 - left.length - right.length;
+  return [...left, ...Array(fill).fill('0000'), ...right]
+    .map(h => h.padStart(4,'0')).join(':');
+}
+
+function ipv6ToBigInt(normalized) {
+  return normalized.split(':').reduce((acc, h) => (acc << 16n) | BigInt(parseInt(h, 16)), 0n);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPF RESOLVER
+// ─────────────────────────────────────────────────────────────────────────────
+async function resolveSPF(domain, depth, parentNode) {
+  if (state.visited.has(domain)) {
+    addAlert('warn', `Loop detected: ${domain} already visited — skipping`);
+    return;
+  }
+  state.visited.add(domain);
+
+  const node = { domain, record: null, mechanisms: [], children: [], error: null, depth };
+  if (parentNode) parentNode.children.push(node);
+  else            state.treeRoot = node;
+
+  const txts    = await dnsRaw(domain, "TXT");
+  const spfRecs = txts.filter(r => r.data.startsWith("v=spf1"));
+
+  if (spfRecs.length === 0) {
+    node.error = "no SPF record";
+    if (depth === 0) addAlert('bad', `No SPF record found for ${domain}`);
+    return;
+  }
+  if (spfRecs.length > 1) {
+    addAlert('bad', `${domain} has ${spfRecs.length} SPF TXT records — RFC 7208 §3.2 requires exactly one (PERMERROR)`);
+  }
+
+  const spf = spfRecs[0].data;
+  node.record = spf;
+  state.rawRecords.push({ domain, record: spf });
+  if (depth === 0) state.hasSPF = true;
+
+  const terms = spf.split(/\s+/).slice(1);
+
+  for (const term of terms) {
+    let qualifier = '+', mech = term;
+    if (['+','-','~','?'].includes(term[0])) { qualifier = term[0]; mech = term.slice(1); }
+    node.mechanisms.push({ raw: term, qualifier, mech });
+
+    if (mech.startsWith('ip4:')) {
+      state.flat.push({ cidr: normCIDR(mech.slice(4), 4), version:'4', mech:'ip4', qualifier, source:domain });
+      continue;
+    }
+    if (mech.startsWith('ip6:')) {
+      state.flat.push({ cidr: normCIDR(mech.slice(4), 6), version:'6', mech:'ip6', qualifier, source:domain });
+      continue;
+    }
+    if (mech === 'a' || /^a[:/]/.test(mech)) {
+      let target = domain, cidrSuffix4 = '/32', cidrSuffix6 = '/128';
+      if (mech.includes(':')) {
+        const rest = mech.slice(2), sl = rest.indexOf('/');
+        target = sl >= 0 ? rest.slice(0, sl) : rest;
+        cidrSuffix4 = sl >= 0 ? '/' + rest.slice(sl+1) : '/32';
+        cidrSuffix6 = sl >= 0 ? '/' + rest.slice(sl+1) : '/128';
+      } else if (mech.includes('/')) {
+        cidrSuffix4 = cidrSuffix6 = mech.slice(1);
+      }
+      const [aRecs, aaaaRecs] = await Promise.all([dnsLookup(target,"A"), dnsRaw(target,"AAAA")]);
+      aRecs.forEach(r    => state.flat.push({ cidr: r.data + cidrSuffix4, version:'4', mech:'a', qualifier, source:target }));
+      aaaaRecs.forEach(r => state.flat.push({ cidr: r.data + cidrSuffix6, version:'6', mech:'a', qualifier, source:target }));
+      continue;
+    }
+    if (mech === 'mx' || /^mx[:/]/.test(mech)) {
+      let target = domain, cidrSuffix4 = '/32', cidrSuffix6 = '/128';
+      if (mech.includes(':')) {
+        const rest = mech.slice(3), sl = rest.indexOf('/');
+        target = sl >= 0 ? rest.slice(0, sl) : rest;
+        cidrSuffix4 = sl >= 0 ? '/' + rest.slice(sl+1) : '/32';
+        cidrSuffix6 = sl >= 0 ? '/' + rest.slice(sl+1) : '/128';
+      } else if (mech.includes('/')) {
+        cidrSuffix4 = cidrSuffix6 = mech.slice(2);
+      }
+      const mxRecs = await dnsLookup(target, "MX");
+      for (const mx of mxRecs) {
+        const host = mx.data.split(' ').pop().replace(/\.$/, '');
+        const [aRecs, aaaaRecs] = await Promise.all([dnsLookup(host,"A"), dnsRaw(host,"AAAA")]);
+        aRecs.forEach(r    => state.flat.push({ cidr: r.data + cidrSuffix4, version:'4', mech:'mx', qualifier, source:target }));
+        aaaaRecs.forEach(r => state.flat.push({ cidr: r.data + cidrSuffix6, version:'6', mech:'mx', qualifier, source:target }));
+      }
+      continue;
+    }
+    if (mech.startsWith('include:')) {
+      state.rfcLookups++;
+      setProgress(Math.min(state.rfcLookups / RFC_LIMIT * 55, 55));
+      if (state.limitHit && state.rfcLookups > RFC_LIMIT) {
+        addAlert('warn', `Skipped include:${mech.slice(8)} — RFC lookup limit reached`);
+        continue;
+      }
+      if (state.rfcLookups > RFC_LIMIT && !state.limitHit) {
+        state.limitHit = true;
+        addAlert('warn', `RFC 7208 §4.6.4 lookup limit of ${RFC_LIMIT} reached — include:${mech.slice(8)} and further mechanisms skipped.`);
+        continue;
+      }
+      await resolveSPF(mech.slice(8), depth + 1, node);
+      continue;
+    }
+    if (mech.startsWith('redirect=')) {
+      state.rfcLookups++;
+      if (!state.limitHit || state.rfcLookups <= RFC_LIMIT) {
+        await resolveSPF(mech.slice(9), depth + 1, node);
+      } else {
+        addAlert('warn', `Skipped redirect=${mech.slice(9)} — RFC lookup limit reached`);
+      }
+      return;
+    }
+    if (mech.startsWith('exists:')) {
+      addAlert('info', `${domain}: exists:${mech.slice(7)} requires runtime SMTP context — noted only`);
+      continue;
+    }
+    if (mech === 'ptr' || mech.startsWith('ptr:')) {
+      addAlert('warn', `${domain}: ptr mechanism is deprecated (RFC 7208 §5.5) and slow — avoid`);
+      continue;
+    }
+    if (mech === 'all') {
+      if (depth === 0) state.allQualifier = qualifier;
+      break;
+    }
+  }
+}
+
+function normCIDR(s, v) {
+  return s.includes('/') ? s : s + (v === 6 ? '/128' : '/32');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DMARC
+// ─────────────────────────────────────────────────────────────────────────────
+async function getDMARC(domain) {
+  const recs = await dnsRaw("_dmarc." + domain, "TXT");
+  return (recs.find(r => r.data.startsWith("v=DMARC1")) || {}).data || null;
+}
+function parseDMARC(record) {
+  const tags = {};
+  if (!record) return tags;
+  record.split(';').forEach(t => {
+    t = t.trim(); const eq = t.indexOf('=');
+    if (eq > 0) tags[t.slice(0,eq).trim()] = t.slice(eq+1).trim();
+  });
+  return tags;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DKIM
+// ─────────────────────────────────────────────────────────────────────────────
+async function probeDKIM(domain) {
+  const found = [];
+  for (let i = 0; i < DKIM_SELECTORS.length; i += 5) {
+    const batch = DKIM_SELECTORS.slice(i, i+5);
+    const results = await Promise.all(
+      batch.map(async sel => {
+        const recs = await dnsRaw(`${sel}._domainkey.${domain}`, "TXT");
+        const rec  = recs.find(r => r.data.includes('p=') || r.data.startsWith('v=DKIM1'));
+        return rec ? { selector: sel, record: rec.data } : null;
+      })
+    );
+    results.filter(Boolean).forEach(r => found.push(r));
+  }
+  return found;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MTA-STS / BIMI / TLS-RPT
+// ─────────────────────────────────────────────────────────────────────────────
+async function getMtaSts(domain) {
+  const recs = await dnsRaw(`_mta-sts.${domain}`, "TXT");
+  return (recs.find(r => r.data.startsWith("v=STSv1")) || {}).data || null;
+}
+async function getBimi(domain) {
+  const recs = await dnsRaw(`default._bimi.${domain}`, "TXT");
+  return (recs.find(r => r.data.startsWith("v=BIMI1")) || {}).data || null;
+}
+async function getTlsRpt(domain) {
+  const recs = await dnsRaw(`_smtp._tls.${domain}`, "TXT");
+  return (recs.find(r => r.data.startsWith("v=TLSRPTv1")) || {}).data || null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IP INTELLIGENCE  — ip-api.com (CORS-friendly, no key needed, batch support)
+// ─────────────────────────────────────────────────────────────────────────────
+const ipInfoCache = new Map();
+
+async function getIPInfoBatch(ips) {
+  // ip-api.com/batch — up to 100 IPs per call, returns JSON array
+  const uncached = ips.filter(ip => !ipInfoCache.has(ip));
+  if (uncached.length) {
+    try {
+      const res  = await fetch('http://ip-api.com/batch?fields=query,org,country,regionName,city,status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(uncached.map(ip => ({ query: ip })))
+      });
+      if (res.ok) {
+        const data = await res.json();
+        data.forEach(d => {
+          ipInfoCache.set(d.query, {
+            org: d.org || 'N/A',
+            loc: [d.city, d.regionName, d.country].filter(Boolean).join(', ') || 'N/A',
+            ok: d.status === 'success'
+          });
+        });
+      }
+    } catch (_) { /* will fall back to N/A */ }
+  }
+  // Ensure any still-missing IPs get a fallback
+  ips.forEach(ip => {
+    if (!ipInfoCache.has(ip)) ipInfoCache.set(ip, { org: 'Unavailable', loc: 'Unavailable', ok: false });
+  });
+}
+
+async function getIPInfo(ip) {
+  if (!ipInfoCache.has(ip)) await getIPInfoBatch([ip]);
+  return ipInfoCache.get(ip);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN RUNNER
+// ─────────────────────────────────────────────────────────────────────────────
+async function runAll() {
+  const domain = document.getElementById('domainInput').value.trim().toLowerCase();
+  if (!domain) return;
+
+  state = {
+    rfcLookups: 0, visited: new Set(), flat: [], dnsCache: new Map(),
+    rawRecords: [], treeRoot: null, allQualifier: null, limitHit: false,
+    dmarcTags: {}, hasSPF: false, hasDMARC: false
+  };
+  ['alertArea','spfTableBody','auditTableBody','treeOutput','rawSpfOutput',
+   'dmarcOutput','dkimOutput','mtaStsOutput','bimiOutput','tlsRptOutput'].forEach(id => {
+    document.getElementById(id).innerHTML = '';
+  });
+  document.getElementById('results').classList.add('hidden');
+  document.getElementById('resolveBtn').disabled = true;
+  setProgress(5);
+  setStatus('Resolving SPF chain…', true);
+
+  try {
+    await resolveSPF(domain, 0, null);
+    setProgress(60);
+    setStatus('Fetching DMARC, DKIM, MTA-STS…', true);
+
+    const [dmarcRaw, dkimResults, mtaSts, bimi, tlsRpt] = await Promise.all([
+      getDMARC(domain), probeDKIM(domain), getMtaSts(domain), getBimi(domain), getTlsRpt(domain),
+    ]);
+
+    setProgress(90);
+    state.dmarcTags = parseDMARC(dmarcRaw);
+    state.hasDMARC  = !!dmarcRaw;
+
+    renderSPFTable();
+    renderTree();
+    renderRawRecords();
+    renderDMARC(dmarcRaw, domain);
+    renderDKIM(dkimResults, domain);
+    renderMtaSts(mtaSts, domain);
+    renderBimi(bimi, domain);
+    renderTlsRpt(tlsRpt, domain);
+    renderAllQualifierAlert();
+    renderSecurityScore();
+
+    document.getElementById('results').classList.remove('hidden');
+    setProgress(100);
+    setStatus(
+      `<span class="badge ok">Done</span>&nbsp; ` +
+      `${dedup(state.flat).length} IPs · ${state.rfcLookups} RFC lookups · ` +
+      `${dkimResults.length} DKIM selector${dkimResults.length !== 1 ? 's' : ''} found`,
+      false
+    );
+    setTimeout(() => setProgress(0), 1200);
+  } catch (err) {
+    setStatus(`<span class="badge bad">Error</span>&nbsp; ${err.message || err}`, false);
+    setProgress(0);
+    console.error(err);
+  } finally {
+    document.getElementById('resolveBtn').disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECURITY SCORE
+// ─────────────────────────────────────────────────────────────────────────────
+function renderSecurityScore() {
+  const checks = [
+    { label: 'SPF record present',               pass: state.hasSPF },
+    { label: 'SPF uses -all or ~all',             pass: state.allQualifier === '-' || state.allQualifier === '~' },
+    { label: 'SPF within 10 RFC lookups',         pass: !state.limitHit && state.rfcLookups <= RFC_LIMIT },
+    { label: 'DMARC record present',              pass: state.hasDMARC },
+    { label: 'DMARC policy reject/quarantine',    pass: ['reject','quarantine'].includes(state.dmarcTags['p']) },
+    { label: 'DMARC has rua reporting',           pass: !!state.dmarcTags['rua'] },
+    { label: 'DMARC pct = 100',                   pass: !state.dmarcTags['pct'] || state.dmarcTags['pct'] === '100' },
+  ];
+  const passed = checks.filter(c => c.pass).length;
+  const score  = Math.round(passed / checks.length * 100);
+  const offset = 213.6 - (score / 100 * 213.6);
+  const color  = score >= 80 ? 'var(--ok)' : score >= 50 ? 'var(--warn)' : 'var(--bad)';
+
+  document.getElementById('scoreArc').style.strokeDashoffset = offset;
+  document.getElementById('scoreArc').style.stroke = color;
+  document.getElementById('scoreNum').textContent  = score;
+  document.getElementById('scoreNum').style.color  = color;
+  document.getElementById('scoreDetails').innerHTML = checks.map(c => `
+    <div class="score-row">
+      <span class="score-label">${c.label}</span>
+      <span class="badge ${c.pass ? 'ok' : 'bad'}">${c.pass ? '✓' : '✗'}</span>
+    </div>`).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPF TABLE
+// ─────────────────────────────────────────────────────────────────────────────
+function renderSPFTable() {
+  const uniq  = dedup(state.flat);
+  const tbody = document.getElementById('spfTableBody');
+  tbody.innerHTML = '';
+  uniq.forEach(row => {
+    const isV6 = row.version === '6';
+    tbody.innerHTML += `
+      <tr data-ip="${row.cidr}" data-src="${row.source}">
+        <td class="mono">${row.cidr}${isV6 ? '<span class="ip6-badge">IPv6</span>' : ''}</td>
+        <td><span class="mech-tag mech-ip${row.version}">IPv${row.version}</span></td>
+        <td><span class="mech-tag mech-${mechClass(row.mech)}">${row.mech}</span></td>
+        <td>${qualifierLabel(row.qualifier)}</td>
+        <td class="mono" style="color:var(--accent)">${row.source}</td>
+      </tr>`;
+  });
+  document.getElementById('spfCount').textContent = `${uniq.length} IPs`;
+  renderLookupMeter();
+}
+
+function renderLookupMeter() {
+  const n = RFC_LIMIT, used = Math.min(state.rfcLookups, n + 2);
+  const dots = [];
+  for (let i = 1; i <= n; i++) {
+    let cls = 'lookup-dot';
+    if (i <= used) cls += i > n ? ' over' : i >= 8 ? ' warn' : ' used';
+    dots.push(`<div class="${cls}" title="RFC lookup ${i}"></div>`);
+  }
+  document.getElementById('lookupMeter').innerHTML = `
+    <div class="lookup-dots">${dots.join('')}</div>
+    <span>${state.rfcLookups} / ${n} RFC-qualifying lookups</span>
+    ${state.rfcLookups >= 8 && !state.limitHit ? '<span class="badge warn">Near limit</span>' : ''}
+    ${state.limitHit ? '<span class="badge bad">Limit exceeded — partial results</span>' : ''}
+    <span style="margin-left:auto;font-size:11px;color:var(--text-4)">ip4/ip6 and TXT fetches not counted per RFC 7208</span>
+  `;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DNS TREE — collapsible nodes
+// ─────────────────────────────────────────────────────────────────────────────
+function colorizeSpf(record) {
+  if (!record) return '';
+  return record.split(/\s+/).map(token => {
+    const low = token.toLowerCase();
+    let cls = 'spf-token-v';
+    if      (low.startsWith('ip4:'))      cls = 'spf-token-ip4';
+    else if (low.startsWith('ip6:'))      cls = 'spf-token-ip6';
+    else if (low.startsWith('include:'))  cls = 'spf-token-include';
+    else if (low.startsWith('redirect=')) cls = 'spf-token-redirect';
+    else if (/^[+\-~?]?a[:/\s]?/.test(low) && !low.startsWith('all')) cls = 'spf-token-a';
+    else if (/^[+\-~?]?mx/.test(low))    cls = 'spf-token-mx';
+    else if (low.endsWith('-all'))        cls = 'spf-token-all-fail';
+    else if (low.endsWith('~all'))        cls = 'spf-token-all-soft';
+    else if (low.endsWith('+all'))        cls = 'spf-token-all-pass';
+    else if (low.endsWith('?all'))        cls = 'spf-token-all-neutral';
+    return `<span class="spf-token ${cls}">${escHtml(token)}</span>`;
+  }).join(' ');
+}
+
+function countIPs(node) {
+  let n = state.flat.filter(f => f.source === node.domain).length;
+  for (const c of node.children) n += countIPs(c);
+  return n;
+}
+
+function buildTreeNode(node, container) {
+  const depth = node.depth || 0;
+  const ipCount = countIPs(node);
+  const hasChildren = node.children && node.children.length > 0;
+  const hasContent  = node.record || node.error;
+  const isExpandable = hasContent || hasChildren;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = `tree-node depth-${depth}`;
+
+  // ── Toggle button (header) ──────────────────────────────────────────────
+  const toggle = document.createElement('button');
+  toggle.className    = 'tree-toggle';
+  toggle.setAttribute('aria-expanded', depth === 0 ? 'true' : 'false');
+
+  const depthLabels = ['ROOT', 'INC', 'INC', 'INC'];
+  toggle.innerHTML = `
+    <span class="tree-chevron">
+      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="4,2 8,6 4,10"/>
+      </svg>
+    </span>
+    <div class="tree-node-left">
+      <div class="tree-depth-icon">${depthLabels[Math.min(depth, 3)]}</div>
+      <span class="tree-domain-label">${escHtml(node.domain)}</span>
+    </div>
+    <div class="tree-node-right">
+      ${ipCount > 0 ? `<span class="tree-ip-count">${ipCount} IP${ipCount !== 1 ? 's' : ''}</span>` : ''}
+      ${node.error  ? `<span class="badge bad">No record</span>`  : `<span class="badge ok">SPF found</span>`}
+    </div>`;
+
+  // ── Collapsible body ────────────────────────────────────────────────────
+  const body  = document.createElement('div');
+  body.className = `tree-body${depth === 0 ? ' open' : ''}`;
+  const inner = document.createElement('div');
+  inner.className = 'tree-body-inner';
+  const content = document.createElement('div');
+  content.className = 'tree-content';
+
+  if (node.error) {
+    content.innerHTML = `<div class="tree-error-note">⚠ ${escHtml(node.error)} — cannot resolve SPF for this domain</div>`;
+  } else if (node.record) {
+    content.innerHTML = `<div class="tree-spf-record">${colorizeSpf(node.record)}</div>`;
+    const mechRow = document.createElement('div');
+    mechRow.className = 'tree-mechs';
+    (node.mechanisms || []).forEach(m => {
+      const tag = document.createElement('span');
+      tag.className = `mech-tag mech-${mechClass(m.mech.split(':')[0].split('/')[0].split('=')[0])}`;
+      tag.textContent = m.raw;
+      mechRow.appendChild(tag);
+    });
+    content.appendChild(mechRow);
+  }
+
+  // Recurse children
+  if (hasChildren) {
+    const childWrap = document.createElement('div');
+    childWrap.className = 'tree-children';
+    for (const child of node.children) buildTreeNode(child, childWrap);
+    content.appendChild(childWrap);
+  }
+
+  inner.appendChild(content);
+  body.appendChild(inner);
+
+  // ── Toggle interaction ──────────────────────────────────────────────────
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', !expanded);
+    body.classList.toggle('open', !expanded);
+  });
+
+  wrapper.appendChild(toggle);
+  wrapper.appendChild(body);
+  container.appendChild(wrapper);
+}
+
+function renderTree() {
+  const container = document.getElementById('treeOutput');
+  container.innerHTML = '';
+  if (!state.treeRoot) return;
+
+  const nodeCount = countNodes(state.treeRoot);
+  document.getElementById('treeStats').textContent =
+    `${nodeCount} domain${nodeCount !== 1 ? 's' : ''} in chain`;
+
+  buildTreeNode(state.treeRoot, container);
+}
+
+function countNodes(node) {
+  return 1 + (node.children || []).reduce((a, c) => a + countNodes(c), 0);
+}
+
+function setAllTreeNodes(expand) {
+  document.querySelectorAll('.tree-toggle').forEach(toggle => {
+    toggle.setAttribute('aria-expanded', expand);
+    const body = toggle.nextElementSibling;
+    if (body) body.classList.toggle('open', expand);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RAW RECORDS
+// ─────────────────────────────────────────────────────────────────────────────
+function renderRawRecords() {
+  const out = document.getElementById('rawSpfOutput');
+  out.innerHTML = '';
+  state.rawRecords.forEach(({ domain, record }) => {
+    out.innerHTML += `
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--text-3);margin-bottom:4px;font-family:var(--mono)">${escHtml(domain)}</div>
+        <pre class="raw-spf">${escHtml(record)}</pre>
+      </div>`;
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DMARC
+// ─────────────────────────────────────────────────────────────────────────────
+function renderDMARC(raw, domain) {
+  const out = document.getElementById('dmarcOutput');
+  if (!raw) {
+    out.innerHTML = `<div class="alert bad"><div class="alert-dot"></div>No DMARC record at _dmarc.${domain} — domain is unauthenticated</div>`;
+    return;
+  }
+  const tags   = parseDMARC(raw);
+  const policy = tags['p'] || 'none';
+  const pBadge = policy === 'reject' ? 'ok' : policy === 'quarantine' ? 'warn' : 'bad';
+  const fields = [
+    { label:'Policy',             val: tags['p']     || 'none',          badge: pBadge },
+    { label:'Subdomain policy',   val: tags['sp']    || 'inherits p',    badge: null },
+    { label:'% enforced',         val: (tags['pct']  || '100') + '%',    badge: null },
+    { label:'Aggregate reports',  val: tags['rua']   || 'none',          badge: null },
+    { label:'Forensic reports',   val: tags['ruf']   || 'none',          badge: null },
+    { label:'DKIM alignment',     val: tags['adkim'] || 'r (relaxed)',   badge: null },
+    { label:'SPF alignment',      val: tags['aspf']  || 'r (relaxed)',   badge: null },
+    { label:'Failure options',    val: tags['fo']    || '0',             badge: null },
+  ];
+  out.innerHTML = `
+    <pre class="raw-spf">${escHtml(raw)}</pre>
+    <div class="dmarc-grid">
+      ${fields.map(f => `
+        <div class="dmarc-item">
+          <div class="dmarc-key">${f.label}</div>
+          <div class="dmarc-val">${f.badge ? `<span class="badge ${f.badge}">${f.val}</span>` : escHtml(f.val)}</div>
+        </div>`).join('')}
+    </div>`;
+  if (policy === 'none')         addAlert('warn', 'DMARC policy is "none" — no enforcement. Emails can still be spoofed.');
+  else if (policy==='quarantine') addAlert('info', 'DMARC policy is "quarantine". Consider upgrading to "reject" for full enforcement.');
+  if (!tags['rua'])              addAlert('warn', 'No DMARC rua (aggregate report URI) — you have no visibility into authentication failures.');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DKIM
+// ─────────────────────────────────────────────────────────────────────────────
+function renderDKIM(results, domain) {
+  const out = document.getElementById('dkimOutput');
+  if (!results.length) {
+    out.innerHTML = `<div class="alert info"><div class="alert-dot"></div>No DKIM TXT records found for common selectors on <strong>${escHtml(domain)}</strong>. Try adding your actual selector manually.</div>
+    <div style="margin-top:12px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="dkimSelectorInput" placeholder="Custom selector (e.g. google)" style="max-width:260px;font-size:13px;padding:8px 12px">
+        <button class="btn ghost" onclick="probeDKIMCustom('${escHtml(domain)}')">Probe</button>
+      </div>
+      <div id="dkimCustomResult" style="margin-top:10px"></div>
+    </div>`;
+    return;
+  }
+  out.innerHTML = results.map(r => `
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px">
+        <span class="mech-tag mech-a" style="margin-right:6px">${escHtml(r.selector)}</span>
+        <span style="font-family:var(--mono);color:var(--text-3);font-size:11px">${escHtml(r.selector)}._domainkey.${escHtml(domain)}</span>
+      </div>
+      <pre class="extra-rec-pre">${escHtml(r.record)}</pre>
+    </div>`).join('') +
+    `<div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+      <input type="text" id="dkimSelectorInput" placeholder="Try another selector…" style="max-width:260px;font-size:13px;padding:8px 12px">
+      <button class="btn ghost" onclick="probeDKIMCustom('${escHtml(domain)}')">Probe</button>
+    </div>
+    <div id="dkimCustomResult" style="margin-top:10px"></div>`;
+}
+
+async function probeDKIMCustom(domain) {
+  const sel = document.getElementById('dkimSelectorInput').value.trim();
+  if (!sel) return;
+  const out  = document.getElementById('dkimCustomResult');
+  out.innerHTML = `<div class="status-text"><div class="spinner"></div> Probing ${escHtml(sel)}._domainkey.${escHtml(domain)}…</div>`;
+  const recs = await dnsRaw(`${sel}._domainkey.${domain}`, "TXT");
+  const rec  = recs.find(r => r.data.includes('p=') || r.data.startsWith('v=DKIM1'));
+  if (rec) {
+    out.innerHTML = `<div class="alert ok"><div class="alert-dot"></div><div>
+      <div style="font-weight:600;margin-bottom:4px">Found: ${escHtml(sel)}._domainkey.${escHtml(domain)}</div>
+      <pre class="extra-rec-pre" style="margin-top:4px">${escHtml(rec.data)}</pre>
+    </div></div>`;
+  } else {
+    out.innerHTML = `<div class="alert bad"><div class="alert-dot"></div>No DKIM record at ${escHtml(sel)}._domainkey.${escHtml(domain)}</div>`;
+  }
+}
+
+function renderMtaSts(raw, domain) {
+  const out = document.getElementById('mtaStsOutput');
+  out.innerHTML = raw
+    ? `<div class="alert ok"><div class="alert-dot"></div>MTA-STS record found — enforces TLS for inbound mail</div><pre class="extra-rec-pre">${escHtml(raw)}</pre>`
+    : `<div class="alert warn"><div class="alert-dot"></div>No MTA-STS record at _mta-sts.${escHtml(domain)} — inbound TLS is not enforced</div>`;
+}
+
+function renderBimi(raw, domain) {
+  const out = document.getElementById('bimiOutput');
+  if (raw) {
+    const logoUrl = (raw.match(/l=([^;]+)/) || [])[1] || '';
+    out.innerHTML = `<div class="alert ok"><div class="alert-dot"></div>BIMI record found</div>
+      <pre class="extra-rec-pre">${escHtml(raw)}</pre>
+      ${logoUrl ? `<div style="margin-top:12px;font-size:13px;color:var(--text-3)">Logo URL: <a href="${escHtml(logoUrl)}" target="_blank" style="color:var(--accent)">${escHtml(logoUrl)}</a></div>` : ''}`;
+  } else {
+    out.innerHTML = `<div class="alert info"><div class="alert-dot"></div>No BIMI record at default._bimi.${escHtml(domain)} — brand logo in email clients not configured</div>`;
+  }
+}
+
+function renderTlsRpt(raw, domain) {
+  const out = document.getElementById('tlsRptOutput');
+  out.innerHTML = raw
+    ? `<div class="alert ok"><div class="alert-dot"></div>TLS-RPT record found — TLS failure reports are being collected</div><pre class="extra-rec-pre">${escHtml(raw)}</pre>`
+    : `<div class="alert warn"><div class="alert-dot"></div>No TLS-RPT record at _smtp._tls.${escHtml(domain)} — TLS delivery failure reporting is not configured</div>`;
+}
+
+function renderAllQualifierAlert() {
+  if (!state.allQualifier) return;
+  const labels = {
+    '+': 'pass (+all) — dangerous! Allows any server to send as this domain',
+    '-': 'fail (-all) — hard fail ✓ Best security posture',
+    '~': 'softfail (~all) — recommended for transitioning; mark but accept',
+    '?': 'neutral (?all) — no assertion; effectively the same as no SPF'
+  };
+  const cls = state.allQualifier === '-' ? 'ok' : state.allQualifier === '~' ? 'warn' : 'bad';
+  addAlert(cls, `SPF "all" qualifier: <strong>${state.allQualifier}all</strong> — ${labels[state.allQualifier] || 'unknown'}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT  — batches IP info lookups
+// ─────────────────────────────────────────────────────────────────────────────
+async function runAudit() {
+  const raw = document.getElementById('userIps').value;
+  const ips = raw.split(/[\n,\s]+/).map(s => s.trim()).filter(Boolean);
+  if (!ips.length) return;
+
+  const tbody = document.getElementById('auditTableBody');
+  tbody.innerHTML = '';
+  document.getElementById('auditSummary').textContent = '';
+  document.getElementById('auditProgress').innerHTML =
+    `<div class="status-text"><div class="spinner"></div> Fetching IP intelligence for ${ips.length} address${ips.length !== 1 ? 'es' : ''}…</div>`;
+
+  const uniq = dedup(state.flat);
+
+  // Batch fetch all IP info first (much faster than one-by-one)
+  const ipv4s = ips.filter(ip => !ip.includes(':'));
+  if (ipv4s.length) await getIPInfoBatch(ipv4s);
+
+  let authorized = 0, unauthorized = 0;
+  tbody.innerHTML = '';
+
+  for (const ip of ips) {
+    const matches = uniq.filter(f => matchIP(ip, f.cidr));
+    const best    = matches[0] || null;
+    const info    = await getIPInfo(ip);
+
+    if (best) authorized++; else unauthorized++;
+
+    tbody.innerHTML += `
+      <tr>
+        <td class="mono">${escHtml(ip)}</td>
+        <td><span class="badge ${best ? 'ok' : 'bad'}">${best ? '✓ Pass' : '✗ Fail'}</span></td>
+        <td class="mono" style="color:var(--text-3)">${best ? escHtml(best.cidr) : '—'}</td>
+        <td class="mono" style="color:var(--accent)">${best ? escHtml(best.source) : '—'}</td>
+        <td>${best ? `<span class="mech-tag mech-${mechClass(best.mech)}">${best.mech}</span>` : '—'}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;color:var(--text-2)">${escHtml(info.org)}</td>
+        <td style="color:var(--text-3)">${escHtml(info.loc)}</td>
+      </tr>`;
+  }
+
+  document.getElementById('auditProgress').innerHTML = '';
+  document.getElementById('auditSummary').innerHTML = `
+    <span class="badge ok">${authorized} authorized</span>
+    <span class="badge bad">${unauthorized} unauthorized</span>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILITIES
+// ─────────────────────────────────────────────────────────────────────────────
+function filterSPF() {
+  const q = document.getElementById('spfSearch').value.toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('#spfTableBody tr').forEach(tr => {
+    const match = !q || tr.dataset.ip.includes(q) || tr.dataset.src.includes(q);
+    tr.style.display = match ? '' : 'none';
+    if (match) shown++;
+  });
+  document.getElementById('spfCount').textContent = `${shown} IPs`;
+}
+
+function exportCSV(tbodyId, filename) {
+  const tbody = document.getElementById(tbodyId);
+  const rows = [], headers = [];
+  const thead = tbody.closest('table').querySelector('thead');
+  if (thead) {
+    thead.querySelectorAll('th').forEach(th => headers.push(`"${th.textContent.trim()}"`));
+    rows.push(headers.join(','));
+  }
+  tbody.querySelectorAll('tr').forEach(tr => {
+    const cells = [];
+    tr.querySelectorAll('td').forEach(td => cells.push(`"${td.textContent.trim().replace(/\s+/g,' ').replace(/"/g,'""')}"`));
+    if (cells.length) rows.push(cells.join(','));
+  });
+  const a = document.createElement('a');
+  a.href     = URL.createObjectURL(new Blob([rows.join('\n')], { type:'text/csv' }));
+  a.download = filename;
+  a.click();
+}
+
+function setTab(el, paneId) {
+  const card = el.closest('.card');
+  card.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  card.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(paneId).classList.add('active');
+}
+
+function addAlert(type, msg) {
+  document.getElementById('alertArea').innerHTML +=
+    `<div class="alert ${type}"><div class="alert-dot"></div><span>${msg}</span></div>`;
+}
+function setStatus(html, loading) {
+  document.getElementById('statusBar').innerHTML = `${loading ? '<div class="spinner"></div>' : ''}${html}`;
+}
+function setProgress(pct) { document.getElementById('progressFill').style.width = pct + '%'; }
+
+function dedup(arr) {
+  const seen = new Set();
+  return arr.filter(x => {
+    const k = x.cidr+'|'+x.source+'|'+x.mech;
+    if (seen.has(k)) return false; seen.add(k); return true;
+  });
+}
+function mechClass(m) {
+  if (!m) return 'a';
+  const b = m.split(':')[0].split('/')[0].split('=')[0].toLowerCase();
+  if (b==='ip4') return 'ip4'; if (b==='ip6') return 'ip6';
+  if (b==='include') return 'inc'; if (b==='redirect') return 'redir';
+  if (b==='exists') return 'exists'; return b;
+}
+function qualifierLabel(q) {
+  return {
+    '+':`<span class="badge ok">+ pass</span>`,
+    '-':`<span class="badge bad">− fail</span>`,
+    '~':`<span class="badge warn">~ softfail</span>`,
+    '?':`<span class="badge info">? neutral</span>`
+  }[q] || q;
+}
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
