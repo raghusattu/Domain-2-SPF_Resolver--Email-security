@@ -21,7 +21,7 @@ This is a lightweight resolver for common SPF inspection and IP validation workf
 
 - `redirect` is supported during policy evaluation and when building the resolved policy tree.
 - The resolver is intentionally focused on common SPF cases; advanced macro expansion and other edge-case RFC behaviors are not implemented.
-- `exists` is treated as a best-effort address lookup check using the resolver's available DNS results.
+- `exists` uses an A-record-style lookup and rejects macro-based forms as unsupported.
 
 ## Usage
 

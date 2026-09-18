@@ -82,12 +82,7 @@ class SystemDNSResolver:
     def txt_records(self, domain: str) -> List[str]:
         dig_output = self._run_dns_command(["dig", "+short", "TXT", domain])
         if dig_output is not None:
-            records = []
-            for line in dig_output.splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                records.append("".join(re.findall(r'"([^"]*)"', line)))
+            records = self._parse_dig_txt_records(dig_output)
             if records:
                 return records
 
@@ -108,6 +103,15 @@ class SystemDNSResolver:
             return []
         return sorted(addresses)
 
+    def ipv4_addresses(self, domain: str) -> List[str]:
+        addresses = set()
+        try:
+            for entry in socket.getaddrinfo(domain, None, family=socket.AF_INET, proto=socket.IPPROTO_TCP):
+                addresses.add(entry[4][0])
+        except socket.gaierror:
+            return []
+        return sorted(addresses)
+
     def mx_hosts(self, domain: str) -> List[str]:
         dig_output = self._run_dns_command(["dig", "+short", "MX", domain])
         if dig_output is not None:
@@ -115,17 +119,33 @@ class SystemDNSResolver:
             for line in dig_output.splitlines():
                 parts = line.split()
                 if len(parts) >= 2:
-                    hosts.append(parts[1].rstrip("."))
+                    hosts.append((int(parts[0]), parts[1].rstrip(".")))
             if hosts:
-                return hosts
+                return [host for _, host in sorted(hosts)]
 
         nslookup_output = self._run_dns_command(["nslookup", "-type=MX", domain])
         if nslookup_output is not None:
-            matches = re.findall(r"mail exchanger = ([^\s]+)", nslookup_output)
+            matches = re.findall(r"MX preference = (\d+), mail exchanger = ([^\s]+)", nslookup_output)
             if matches:
-                return [item.rstrip(".") for item in matches]
+                return [host.rstrip(".") for _, host in sorted((int(priority), host) for priority, host in matches)]
 
         return []
+
+    @staticmethod
+    def _parse_dig_txt_records(output: str) -> List[str]:
+        records = []
+        for line in output.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            segments = re.findall(r'"([^"]*)"', line)
+            if not segments:
+                continue
+            if len(segments) == 1 or segments[0].lower().startswith("v=spf1"):
+                records.append("".join(segments))
+                continue
+            records.extend(segments)
+        return records
 
     @staticmethod
     def _run_dns_command(command: Sequence[str]) -> Optional[str]:
@@ -160,7 +180,10 @@ class SPFResolver:
         if record is None:
             return ResolvedSPF(domain=domain, record=None, error="No SPF record found")
 
-        parsed = self.parse_spf_record(domain, record)
+        try:
+            parsed = self.parse_spf_record(domain, record)
+        except ValueError as error:
+            return ResolvedSPF(domain=domain, record=record, error=str(error))
         next_seen = seen + (domain,)
         includes = [
             self._resolve(mechanism.value, next_seen, depth + 1)
@@ -194,6 +217,8 @@ class SPFResolver:
                     redirect = value
                 elif name == "exp":
                     explanation = value
+                else:
+                    raise ValueError(f"Invalid SPF modifier: {token}")
                 continue
 
             qualifier = "+"
@@ -247,7 +272,10 @@ class SPFResolver:
         if record is None:
             return "none", None, None
 
-        parsed = self.parse_spf_record(domain, record)
+        try:
+            parsed = self.parse_spf_record(domain, record)
+        except ValueError:
+            return "permerror", None, record
         next_seen = seen + (domain,)
 
         for mechanism in parsed.mechanisms:
@@ -305,7 +333,12 @@ class SPFResolver:
         if mechanism.name == "exists" and mechanism.value:
             if "%" in mechanism.value:
                 raise ValueError("SPF macros are not supported")
-            return bool(self.dns_resolver.addresses(mechanism.value))
+            if hasattr(self.dns_resolver, "ipv4_addresses"):
+                return bool(self.dns_resolver.ipv4_addresses(mechanism.value))
+            return any(
+                ipaddress.ip_address(candidate).version == 4
+                for candidate in self.dns_resolver.addresses(mechanism.value)
+            )
 
         return False
 
@@ -330,6 +363,10 @@ class SPFResolver:
 
         parts = value.split("/")
         if len(parts) > 3:
+            raise ValueError(f"Invalid SPF mechanism value: {value}")
+        if len(parts) >= 2 and not parts[1]:
+            raise ValueError(f"Invalid SPF mechanism value: {value}")
+        if len(parts) == 3 and not parts[2]:
             raise ValueError(f"Invalid SPF mechanism value: {value}")
 
         domain = parts[0] or None

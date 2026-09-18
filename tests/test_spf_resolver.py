@@ -17,6 +17,9 @@ class FakeDNSResolver:
     def addresses(self, domain):
         return list(self._addresses.get(domain, []))
 
+    def ipv4_addresses(self, domain):
+        return [address for address in self.addresses(domain) if ":" not in address]
+
     def mx_hosts(self, domain):
         return list(self._mx.get(domain, []))
 
@@ -89,7 +92,27 @@ class SPFResolverTests(unittest.TestCase):
 
         self.assertEqual("permerror", result.result)
 
-    def test_exists_matches_when_target_domain_resolves(self):
+    def test_invalid_dual_cidr_syntax_returns_permerror(self):
+        resolver = SPFResolver(FakeDNSResolver(txt={"example.com": ["v=spf1 a//64 -all"]}))
+
+        result = resolver.check_ip("example.com", "198.51.100.20")
+
+        self.assertEqual("permerror", result.result)
+
+    def test_exists_matches_when_target_domain_has_a_record(self):
+        resolver = SPFResolver(
+            FakeDNSResolver(
+                txt={"example.com": ["v=spf1 exists:mail.example.net -all"]},
+                addresses={"mail.example.net": ["203.0.113.15"]},
+            )
+        )
+
+        result = resolver.check_ip("example.com", "198.51.100.20")
+
+        self.assertEqual("pass", result.result)
+        self.assertEqual("exists:mail.example.net", result.matched_mechanism)
+
+    def test_exists_does_not_match_ipv6_only_hosts(self):
         resolver = SPFResolver(
             FakeDNSResolver(
                 txt={"example.com": ["v=spf1 exists:ipv6-only.example.net -all"]},
@@ -99,8 +122,8 @@ class SPFResolverTests(unittest.TestCase):
 
         result = resolver.check_ip("example.com", "198.51.100.20")
 
-        self.assertEqual("pass", result.result)
-        self.assertEqual("exists:ipv6-only.example.net", result.matched_mechanism)
+        self.assertEqual("fail", result.result)
+        self.assertEqual("-all", result.matched_mechanism)
 
     def test_dual_cidr_syntax_is_supported_for_a_mechanism(self):
         resolver = SPFResolver(
@@ -180,6 +203,13 @@ class SPFResolverTests(unittest.TestCase):
 
     def test_macro_exists_returns_permerror(self):
         resolver = SPFResolver(FakeDNSResolver(txt={"example.com": ["v=spf1 exists:%{i}.spf.example.net -all"]}))
+
+        result = resolver.check_ip("example.com", "198.51.100.20")
+
+        self.assertEqual("permerror", result.result)
+
+    def test_invalid_modifier_returns_permerror(self):
+        resolver = SPFResolver(FakeDNSResolver(txt={"example.com": ["v=spf1 exists=mail.example.net -all"]}))
 
         result = resolver.check_ip("example.com", "198.51.100.20")
 
