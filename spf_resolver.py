@@ -151,7 +151,10 @@ class SystemDNSResolver:
     def _run_dns_command(command: Sequence[str]) -> Optional[str]:
         if shutil.which(command[0]) is None:
             return None
-        completed = subprocess.run(command, capture_output=True, text=True, check=False)
+        try:
+            completed = subprocess.run(command, capture_output=True, text=True, check=False)
+        except (OSError, subprocess.SubprocessError):
+            return None
         if completed.returncode != 0:
             return None
         return completed.stdout
@@ -211,14 +214,11 @@ class SPFResolver:
         explanation = None
 
         for token in parts[1:]:
-            if "=" in token:
-                name, value = token.split("=", 1)
-                if name == "redirect":
-                    redirect = value
-                elif name == "exp":
-                    explanation = value
-                else:
-                    raise ValueError(f"Invalid SPF modifier: {token}")
+            if token.startswith("redirect="):
+                redirect = token.split("=", 1)[1]
+                continue
+            if token.startswith("exp="):
+                explanation = token.split("=", 1)[1]
                 continue
 
             qualifier = "+"
@@ -311,6 +311,8 @@ class SPFResolver:
 
         if mechanism.name == "include" and mechanism.value:
             result, _, _ = self._evaluate(mechanism.value, ip_address, depth + 1, seen)
+            if result in {"permerror", "temperror"}:
+                raise ValueError(f"Invalid included SPF policy: {mechanism.value}")
             return result == "pass"
 
         if mechanism.name == "a":
@@ -340,7 +342,7 @@ class SPFResolver:
                 for candidate in self.dns_resolver.addresses(mechanism.value)
             )
 
-        return False
+        raise ValueError(f"Unsupported SPF mechanism: {mechanism.name}")
 
     @staticmethod
     def _format_mechanism(mechanism: SPFMechanism) -> str:

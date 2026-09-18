@@ -47,6 +47,20 @@ class SPFResolverTests(unittest.TestCase):
         self.assertEqual("pass", result.result)
         self.assertEqual("include:_spf.sender.test", result.matched_mechanism)
 
+    def test_include_propagates_permerror_from_malformed_policy(self):
+        resolver = SPFResolver(
+            FakeDNSResolver(
+                txt={
+                    "example.com": ["v=spf1 include:_spf.sender.test -all"],
+                    "_spf.sender.test": ["v=spf1 exists=mail.example.net -all"],
+                }
+            )
+        )
+
+        result = resolver.check_ip("example.com", "198.51.100.12")
+
+        self.assertEqual("permerror", result.result)
+
     def test_redirect_is_used_when_no_mechanism_matches(self):
         resolver = SPFResolver(
             FakeDNSResolver(
@@ -111,6 +125,19 @@ class SPFResolverTests(unittest.TestCase):
 
         self.assertEqual("pass", result.result)
         self.assertEqual("exists:mail.example.net", result.matched_mechanism)
+
+    def test_exists_allows_equals_inside_domain_spec(self):
+        resolver = SPFResolver(
+            FakeDNSResolver(
+                txt={"example.com": ["v=spf1 exists:foo=bar.example.net -all"]},
+                addresses={"foo=bar.example.net": ["203.0.113.15"]},
+            )
+        )
+
+        result = resolver.check_ip("example.com", "198.51.100.20")
+
+        self.assertEqual("pass", result.result)
+        self.assertEqual("exists:foo=bar.example.net", result.matched_mechanism)
 
     def test_exists_does_not_match_ipv6_only_hosts(self):
         resolver = SPFResolver(
