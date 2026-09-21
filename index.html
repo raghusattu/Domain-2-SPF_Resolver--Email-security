@@ -511,7 +511,61 @@ const RFC_LIMIT = 10;
 const DKIM_SELECTORS = [
   'default','google','selector1','selector2','k1','k2','mail','smtp',
   'dkim','email','s1','s2','protonmail','zoho','mailchimp','sendgrid',
-  'mandrill','sparkpost','amazonses','pm','mimecast','office365'
+  'mandrill','sparkpost','amazonses','pm','mimecast','office365',
+  'default', 'google', 'google2', 'selector1', 'selector2', 'selector3', 'selector4', 'selector5',
+  'k1', 'k2', 'k3', 'k4', 'k5', 's1', 's2', 's3', 's4', 's5', 's1024', 's2048',
+  'k1024', 'k2048', 'mail', 'mail1', 'mail2', 'mail3', 'email', 'email1', 'email2',
+  'smtp', 'smtp1', 'smtp2', 'dkim', 'dkim1', 'dkim2', 'dkim3', 'sig', 'sig1', 'sig2',
+  'key1', 'key2', 'key3', 'm1', 'm2', 'm3', 'd1', 'd2', 'd3', 'app', 'main', 'test',
+  'admin', 'root', 'mta', 'mta1', 'mta2', 'mx', 'mx1', 'mx2', 'relay', 'gateway', 'outbound',
+
+  // Major Email Service Providers & Infra (ESP)
+  'protonmail', 'protonmail2', 'protonmail3', 'zoho', 'zmail', 'mailchimp', 'sendgrid',
+  'mandrill', 'sparkpost', 'amazonses', 'ses', 'mimecast', 'mimecast1', 'mimecast2',
+  'office365', 'o365', 'm365', 'outlook', 'exchange', 'fastmail', 'fm1', 'fm2', 'fm3',
+  'mailgun', 'pdk1', 'pdk2', 'postmark', 'pm', 'pm1', 'pm2', 'brevo', 'brevo1', 'brevo2',
+  'sendinblue', 'sendinblue1', 'sendinblue2', 'hubspot', 'hs1', 'hs2', 'klaviyo', 'kl', 'kl1', 'kl2',
+  'activecampaign', 'ac', 'ac1', 'ac2', 'salesforce', 'sf', 'sf1', 'sf2048', 'marketo',
+  'mkt', 'mkt1', 'pardot', 'pd', 'pd1', 'zendesk', 'zendesk1', 'zendesk2', 'freshdesk',
+  'freshservice', 'intercom', 'mailerlite', 'litesrv', 'constantcontact', 'ctct1', 'ctct2',
+  'aweber', 'getresponse', 'convertkit', 'ck', 'drip', 'ontraport', 'blackbaud', 'etapestry',
+
+  // Hosting, Control Panels & Enterprise Security
+  'rackspace', 'rs1', 'rs2', 'proofpoint', 'pp', 'barracuda', 'cisco', 'ironport', 'symantec',
+  'trendmicro', 'sophos', 'workday', 'sap', 'oracle', 'netsuite', 'servicenow', 'atlassian',
+  'jira', 'confluence', 'stripe', 'paypal', 'square', 'shopify', 'titan1', 'titan2',
+  'postfix', 'exim', 'sendmail', 'cpanel', 'plesk', 'whm', 'webmail', 'mailserver',
+  'hetzner', 'godaddy', 'bluehost', 'hostgator', 'siteground', 'digitalocean', 'linode',
+  'ovh', 'ionos', '1and1', 'icloud', 'everlytickey1', 'everlytickey2', 'mxvault', 'eversrv',
+
+  // Function & Business Department Names
+  'marketing', 'marketing1', 'mktg', 'transactional', 'trans', 'trans1', 'trans2',
+  'bulk', 'bulk1', 'newsletter', 'news', 'notifications', 'notify', 'alert', 'auth',
+  'support', 'help', 'sales', 'billing', 'finance', 'info', 'contact', 'no-reply',
+  'noreply', 'system', 'app-mail', 'dev', 'prod', 'staging', 'corp', 'internal',
+
+  // Date-Based Standard Rotations (2020 - 2026)
+  '2020', '2021', '2022', '2023', '2024', '2025', '2026', '2027',
+  '202001', '202002', '202101', '202102', '202201', '202202', '202301', '202302',
+  '202401', '202402', '202403', '202404', '202501', '202502', '202503', '202504',
+  '202601', '202602', '202603', '202604', 'jan2024', 'feb2024', 'mar2024', 'apr2024',
+  'may2024', 'jun2024', 'jul2024', 'aug2024', 'sep2024', 'oct2024', 'nov2024', 'dec2024',
+  'jan2025', 'feb2025', 'mar2025', 'apr2025', 'may2025', 'jun2025', 'jul2025', 'aug2025',
+  'sep2025', 'oct2025', 'nov2025', 'dec2025', 'jan2026', 'feb2026', 'mar2026', 'apr2026',
+  'may2026', 'jun2026', 'jul2026', 'aug2026', 'sep2026', 'oct2026', 'nov2026', 'dec2026',
+  '2024q1', '2024q2', '2024q3', '2024q4', '2025q1', '2025q2', '2025q3', '2025q4',
+  '2026q1', '2026q2', '2026q3', '2026q4', 'k2024a', 'k2024b', 'k2025a', 'k2025b', 'k2026a', 'k2026b',
+
+  // Numeric Sequences & Index Patterns
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '01', '02', '03', '04', '05',
+  's01', 's02', 's03', 's04', 's05', 'k01', 'k02', 'k03', 'k04', 'k05',
+  'm01', 'm02', 'm03', 'd01', 'd02', 'd03', 'key01', 'key02', 'key03',
+  'sel1', 'sel2', 'sel3', 'sel4', 'sel5', 'dkim_1', 'dkim_2', 'dkim_3',
+
+  // Cryptographic & Algorithm Nomenclature
+  'rsa', 'rsa1', 'rsa2', 'rsa1024', 'rsa2048', 'rsa4096', 'ed25519', 'ed1', 'ed2',
+  'sha256', 'sha1', 'cert', 'cert1', 'cert2', 'pubkey', 'pubkey1', 'pubkey2'
+];
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
